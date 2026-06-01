@@ -43,6 +43,7 @@ export function EditProductPage() {
   // Form Fields State
   const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
+  const [productCode, setProductCode] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [thickness, setThickness] = useState("");
   const [unit, setUnit] = useState("");
@@ -87,6 +88,7 @@ export function EditProductPage() {
       const p = product;
       const catgId = p.products_catg_id ?? (p as any).product_category_id ?? (p as any).category_id;
       const subCatgId = p.products_sub_catg_id ?? (p as any).product_sub_category_id ?? (p as any).sub_category_id;
+      const productCode = p.products_code ?? (p as any).product_code ?? (p as any).productCode ?? "";
       const brand = p.products_brand ?? (p as any).brand_name ?? (p as any).brands_name ?? "";
       const thickness = p.products_thickness ?? "";
       const unit = p.products_unit ?? "";
@@ -98,6 +100,7 @@ export function EditProductPage() {
 
       setCategoryId(catgId !== undefined && catgId !== null ? String(catgId) : "");
       setSubCategoryId(subCatgId !== undefined && subCatgId !== null ? String(subCatgId) : "");
+      setProductCode(productCode !== undefined && productCode !== null ? String(productCode) : "");
       setSelectedBrand(brand);
       setThickness(thickness);
       setUnit(unit);
@@ -119,6 +122,7 @@ export function EditProductPage() {
     trigger("heavy");
 
     const formData = new FormData();
+    formData.append("products_code", productCode.trim());
     formData.append("products_catg_id", categoryId);
     formData.append("products_sub_catg_id", subCategoryId);
     formData.append("products_brand", selectedBrand);
@@ -150,7 +154,7 @@ export function EditProductPage() {
     : "https://decopanel.in/storage/app/public/no_image.jpg";
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6 w-full max-w-4xl mx-auto pb-24 md:pb-6 animate-fade-in duration-300">
+    <div className="flex flex-col gap-6 p-4 md:p-6 w-full max-w-7xl mx-auto pb-24 md:pb-6 animate-fade-in duration-300">
       <div className="flex items-center gap-3 bg-panel border border-border/80 p-4 rounded-2xl shadow-xs">
         <Button asChild variant="outline" size="icon" className="rounded-full h-9 w-9 cursor-pointer">
           <Link to="/products" onClick={() => trigger("light")}>
@@ -178,7 +182,21 @@ export function EditProductPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              {/* Product Code */}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="products-code" className="text-xs font-bold text-text-muted uppercase tracking-wider">Product Code</Label>
+                <Input
+                  id="products-code"
+                  type="text"
+                  maxLength={50}
+                  value={productCode}
+                  onChange={(e) => setProductCode(e.target.value)}
+                  placeholder="e.g. DP-1001"
+                  className="bg-background border-border rounded-xl"
+                />
+              </div>
+
               {/* Category */}
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Category *</Label>

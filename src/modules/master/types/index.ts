@@ -41,6 +41,7 @@ export interface Product {
   products_sub_catg_id: string | number;
   product_category?: string; // Resolved name
   product_sub_category?: string; // Resolved name
+  products_code?: string | number | null;
   products_brand: string;
   products_thickness: string;
   products_unit: string;
