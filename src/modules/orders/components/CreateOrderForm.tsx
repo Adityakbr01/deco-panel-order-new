@@ -18,27 +18,36 @@ import { CreateOrderItemCard } from "./CreateOrderItemCard";
 import { CustomerSelect } from "./CustomerSelect";
 import { OrderDatePicker } from "./OrderDatePicker";
 
+function pickFirstPresent(...values: unknown[]) {
+  return values.find(
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
+  );
+}
+
 function getProductCategoryId(product?: OrderProduct) {
   return (
-    product?.products_catg_id ??
-    product?.product_catg_id ??
-    product?.products_category_id ??
-    product?.product_category_id ??
-    product?.category_id ??
-    product?.catg_id ??
-    ""
+    pickFirstPresent(
+      product?.products_catg_id,
+      product?.product_catg_id,
+      product?.products_category_id,
+      product?.product_category_id,
+      product?.category_id,
+      product?.catg_id,
+    ) ?? ""
   );
 }
 
 function getProductSubCategoryId(product?: OrderProduct) {
   return (
-    product?.products_sub_catg_id ??
-    product?.product_sub_catg_id ??
-    product?.products_sub_category_id ??
-    product?.product_sub_category_id ??
-    product?.sub_category_id ??
-    product?.sub_catg_id ??
-    ""
+    pickFirstPresent(
+      product?.products_sub_catg_id,
+      product?.product_sub_catg_id,
+      product?.products_sub_category_id,
+      product?.product_sub_category_id,
+      product?.sub_category_id,
+      product?.sub_catg_id,
+    ) ?? ""
   );
 }
 

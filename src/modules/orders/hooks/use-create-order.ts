@@ -16,40 +16,163 @@ function getProductId(product: any) {
   return product?.id ?? product?.product_id ?? product?.products_id;
 }
 
+function pickFirstPresent(...values: unknown[]) {
+  return values.find(
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
+  );
+}
+
 function getProductCategoryId(product: any) {
-  return (
-    product?.products_catg_id ??
-    product?.product_catg_id ??
-    product?.products_category_id ??
-    product?.product_category_id ??
-    product?.category_id ??
-    product?.catg_id
+  return pickFirstPresent(
+    product?.products_catg_id,
+    product?.product_catg_id,
+    product?.products_cat_id,
+    product?.product_cat_id,
+    product?.products_category_id,
+    product?.product_category_id,
+    product?.category_id,
+    product?.catg_id,
   );
 }
 
 function getProductSubCategoryId(product: any) {
-  return (
-    product?.products_sub_catg_id ??
-    product?.product_sub_catg_id ??
-    product?.products_sub_category_id ??
-    product?.product_sub_category_id ??
-    product?.sub_category_id ??
-    product?.sub_catg_id
+  return pickFirstPresent(
+    product?.products_sub_catg_id,
+    product?.product_sub_catg_id,
+    product?.products_sub_cat_id,
+    product?.product_sub_cat_id,
+    product?.products_sub_category_id,
+    product?.product_sub_category_id,
+    product?.sub_category_id,
+    product?.sub_catg_id,
   );
 }
 
-function normalizeOrderProduct(product: OrderProduct, fallbackProduct?: any) {
+function getCategoryId(category: any) {
+  return pickFirstPresent(
+    category?.id,
+    category?.product_category_id,
+    category?.category_id,
+    category?.product_catg_id,
+    category?.products_catg_id,
+  );
+}
+
+function getSubCategoryParentId(subCategory: any) {
+  return pickFirstPresent(
+    subCategory?.product_category_id,
+    subCategory?.products_catg_id,
+    subCategory?.category_id,
+    subCategory?.catg_id,
+  );
+}
+
+function getSubCategoryId(subCategory: any) {
+  return pickFirstPresent(
+    subCategory?.id,
+    subCategory?.product_sub_category_id,
+    subCategory?.sub_category_id,
+    subCategory?.products_sub_catg_id,
+    subCategory?.product_sub_catg_id,
+  );
+}
+
+function normalizeKey(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function extractList(data: any, keys: string[]) {
+  for (const key of keys) {
+    if (Array.isArray(data?.[key])) return data[key];
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
+function createProductIdLookups(categories: any[], subCategories: any[]) {
+  const categoriesByName = new Map<string, unknown>();
+  const subCategoriesByName = new Map<string, unknown>();
+  const subCategoriesByNameAndCategory = new Map<string, unknown>();
+
+  categories.forEach((category) => {
+    const id = getCategoryId(category);
+    const name = normalizeKey(category?.product_category ?? category?.category);
+    if (name && id !== undefined) categoriesByName.set(name, id);
+  });
+
+  subCategories.forEach((subCategory) => {
+    const id = getSubCategoryId(subCategory);
+    const parentId =
+      getSubCategoryParentId(subCategory) ??
+      categoriesByName.get(normalizeKey(subCategory?.product_category));
+    const name = normalizeKey(
+      subCategory?.product_sub_category ?? subCategory?.sub_category,
+    );
+
+    if (!name || id === undefined) return;
+
+    subCategoriesByName.set(name, id);
+    if (parentId !== undefined) {
+      subCategoriesByNameAndCategory.set(`${name}:${parentId}`, id);
+    }
+  });
+
+  return { categoriesByName, subCategoriesByName, subCategoriesByNameAndCategory };
+}
+
+function resolveCategoryId(product: any, fallbackProduct: any, lookups?: ReturnType<typeof createProductIdLookups>) {
+  const directId =
+    getProductCategoryId(product) ??
+    getProductCategoryId(fallbackProduct);
+
+  if (directId !== undefined) return directId;
+
+  return lookups?.categoriesByName.get(normalizeKey(product?.product_category));
+}
+
+function resolveSubCategoryId(
+  product: any,
+  fallbackProduct: any,
+  categoryId: unknown,
+  lookups?: ReturnType<typeof createProductIdLookups>,
+) {
+  const directId =
+    getProductSubCategoryId(product) ??
+    getProductSubCategoryId(fallbackProduct);
+
+  if (directId !== undefined) return directId;
+
+  const subCategoryName = normalizeKey(product?.product_sub_category);
+  return (
+    lookups?.subCategoriesByNameAndCategory.get(`${subCategoryName}:${categoryId}`) ??
+    lookups?.subCategoriesByName.get(subCategoryName)
+  );
+}
+
+function normalizeOrderProduct(
+  product: OrderProduct,
+  fallbackProduct?: any,
+  lookups?: ReturnType<typeof createProductIdLookups>,
+) {
   const mergedProduct = {
     ...(fallbackProduct || {}),
     ...product,
   };
   const normalizedProduct = withProductSizeUnit(mergedProduct);
+  const categoryId = resolveCategoryId(product, fallbackProduct, lookups);
+  const subCategoryId = resolveSubCategoryId(
+    product,
+    fallbackProduct,
+    categoryId,
+    lookups,
+  );
 
   return {
     ...normalizedProduct,
     id: getProductId(normalizedProduct),
-    products_catg_id: getProductCategoryId(normalizedProduct),
-    products_sub_catg_id: getProductSubCategoryId(normalizedProduct),
+    products_catg_id: categoryId,
+    products_sub_catg_id: subCategoryId,
   };
 }
 
@@ -70,8 +193,9 @@ export function useProductsList() {
     queryKey: ["products-list"],
     queryFn: async () => {
       const response = await api.get<{ products: OrderProduct[] }>("/web-fetch-product");
-      const products = response.data?.products || [];
+      const products = extractList(response.data, ["products", "productList", "productsList"]);
       let fallbackProductsById = new Map<string, any>();
+      let productIdLookups: ReturnType<typeof createProductIdLookups> | undefined;
 
       if (
         products.some(
@@ -81,7 +205,7 @@ export function useProductsList() {
         try {
           const fallbackResponse = await api.get<{ products: any[] }>("/web-fetch-product-list");
           fallbackProductsById = new Map(
-            (fallbackResponse.data?.products || [])
+            extractList(fallbackResponse.data, ["products", "productList", "productsList"])
               .map((product) => [String(getProductId(product) || ""), product])
               .filter(([productId]) => productId),
           );
@@ -92,8 +216,48 @@ export function useProductsList() {
         }
       }
 
+      if (
+        products.some((product) => {
+          const fallbackProduct = fallbackProductsById.get(String(getProductId(product) || ""));
+          return (
+            !resolveCategoryId(product, fallbackProduct) ||
+            !resolveSubCategoryId(product, fallbackProduct, resolveCategoryId(product, fallbackProduct))
+          );
+        })
+      ) {
+        try {
+          const [categoriesResponse, subCategoriesResponse] = await Promise.all([
+            api.get("/web-fetch-category-list"),
+            api.get("/web-fetch-sub-category-list"),
+          ]);
+
+          productIdLookups = createProductIdLookups(
+            extractList(categoriesResponse.data, [
+              "productCategoryList",
+              "productCategory",
+              "categories",
+              "category",
+            ]),
+            extractList(subCategoriesResponse.data, [
+              "productSubCategoryList",
+              "productSubCategory",
+              "subCategories",
+              "subCategory",
+            ]),
+          );
+        } catch (error) {
+          if (isOrderUpdateDebugEnabled()) {
+            console.warn("[Order Update Debug] Product category lookup fetch failed", error);
+          }
+        }
+      }
+
       return products.map((product) =>
-        normalizeOrderProduct(product, fallbackProductsById.get(String(getProductId(product) || ""))),
+        normalizeOrderProduct(
+          product,
+          fallbackProductsById.get(String(getProductId(product) || "")),
+          productIdLookups,
+        ),
       );
     },
   });

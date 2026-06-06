@@ -1,7 +1,13 @@
 import axios from "axios";
 
+const DEFAULT_API_URL = "https://decopanel.in/public/api/";
+const shouldUseDevProxy =
+  import.meta.env.DEV && import.meta.env.VITE_USE_API_PROXY === "true";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://decopanel.in/public/api/",
+  baseURL: shouldUseDevProxy
+    ? import.meta.env.VITE_API_PROXY_URL || "/api/proxy"
+    : import.meta.env.VITE_API_URL || DEFAULT_API_URL,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });

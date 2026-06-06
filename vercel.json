@@ -7,10 +7,6 @@
   "framework": null,
   "rewrites": [
     {
-      "source": "/api/proxy/:path*",
-      "destination": "https://decopanel.in/public/api/:path*"
-    },
-    {
       "source": "/api/fleet/:path*",
       "destination": "https://dfcgroup.in/fleetapi/public/api/:path*"
     },

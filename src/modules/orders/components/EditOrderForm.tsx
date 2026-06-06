@@ -38,6 +38,39 @@ interface EditOrderFormProps {
   orderId: string;
 }
 
+function pickFirstPresent(...values: unknown[]) {
+  return values.find(
+    (value) =>
+      value !== undefined && value !== null && String(value).trim() !== "",
+  );
+}
+
+function getProductCategoryId(product?: OrderProduct) {
+  return (
+    pickFirstPresent(
+      product?.products_catg_id,
+      product?.product_catg_id,
+      product?.products_category_id,
+      product?.product_category_id,
+      product?.category_id,
+      product?.catg_id,
+    ) ?? ""
+  );
+}
+
+function getProductSubCategoryId(product?: OrderProduct) {
+  return (
+    pickFirstPresent(
+      product?.products_sub_catg_id,
+      product?.product_sub_catg_id,
+      product?.products_sub_category_id,
+      product?.product_sub_category_id,
+      product?.sub_category_id,
+      product?.sub_catg_id,
+    ) ?? ""
+  );
+}
+
 export default function EditOrderForm({ orderId }: EditOrderFormProps) {
   const { trigger } = useWebHaptics();
   const quantityRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -113,12 +146,32 @@ export default function EditOrderForm({ orderId }: EditOrderFormProps) {
       if (orderData.orderSub && orderData.orderSub.length > 0) {
         const formattedSub = orderData.orderSub.map((sub: any) => {
           const prod = products.find((p) => String(p.id) === String(sub.orders_sub_product_id));
+          const catgId = pickFirstPresent(
+            sub.orders_sub_catg_id,
+            getProductCategoryId(prod),
+            prod?.product_category,
+            "",
+          );
+          let subCatgId = pickFirstPresent(
+            sub.orders_sub_sub_catg_id,
+            getProductSubCategoryId(prod),
+            prod?.product_sub_category,
+            "",
+          );
+
+          if (
+            prod?.product_sub_category === "Commercial Plywood" ||
+            String(subCatgId) === "Commercial Plywood"
+          ) {
+            subCatgId = catgId;
+          }
+
           return {
             id: sub.id ?? sub.orders_sub_id ?? "",
             orders_sub_product_id: sub.orders_sub_product_id || "",
             orders_sub_design_no: sub.orders_sub_design_no || "",
-            orders_sub_catg_id: sub.orders_sub_catg_id || prod?.product_category || "",
-            orders_sub_sub_catg_id: sub.orders_sub_sub_catg_id || prod?.product_sub_category || "",
+            orders_sub_catg_id: catgId || "",
+            orders_sub_sub_catg_id: subCatgId || "",
             orders_sub_brand: sub.orders_sub_brand || prod?.products_brand || "",
             orders_sub_thickness: sub.orders_sub_thickness || prod?.products_thickness || "",
             orders_sub_unit: sub.orders_sub_unit || prod?.products_unit || "",
@@ -212,13 +265,23 @@ export default function EditOrderForm({ orderId }: EditOrderFormProps) {
 
   const handleSelectProduct = (product: OrderProduct) => {
     if (activeEditIndex !== null) {
+      const catgId = getProductCategoryId(product);
+      let subCatgId = getProductSubCategoryId(product);
+
+      if (
+        product.product_sub_category === "Commercial Plywood" ||
+        String(subCatgId) === "Commercial Plywood"
+      ) {
+        subCatgId = catgId;
+      }
+
       const updatedItems = [...items];
       updatedItems[activeEditIndex] = {
         ...updatedItems[activeEditIndex],
         orders_sub_product_id: product.id,
         orders_sub_design_no: updatedItems[activeEditIndex].orders_sub_design_no || "",
-        orders_sub_catg_id: product.product_category,
-        orders_sub_sub_catg_id: product.product_sub_category,
+        orders_sub_catg_id: catgId,
+        orders_sub_sub_catg_id: subCatgId,
         orders_sub_brand: product.products_brand,
         orders_sub_thickness: product.products_thickness,
         orders_sub_unit: product.products_unit,
