@@ -142,24 +142,14 @@ export default function CreateOrderForm() {
 
   const handleSelectProduct = (product: OrderProduct) => {
     if (activeEditIndex !== null) {
-      const catgId = getProductCategoryId(product);
-      let subCatgId = getProductSubCategoryId(product);
-
-      if (
-        product.product_sub_category === "Commercial Plywood" ||
-        String(subCatgId) === "Commercial Plywood"
-      ) {
-        subCatgId = catgId;
-      }
-
       setItems((prev) =>
         prev.map((item, index) =>
           index === activeEditIndex
             ? {
                 orders_sub_product_id: product.id,
                 orders_sub_design_no: item.orders_sub_design_no || "",
-                orders_sub_catg_id: catgId,
-                orders_sub_sub_catg_id: subCatgId,
+                orders_sub_catg_id: product.product_category,
+                orders_sub_sub_catg_id: product.product_sub_category,
                 orders_sub_brand: product.products_brand,
                 orders_sub_thickness: product.products_thickness,
                 orders_sub_unit: product.products_unit,
