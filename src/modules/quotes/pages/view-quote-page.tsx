@@ -41,6 +41,40 @@ function getPrintSizeUnit(item: {
   );
 }
 
+function getItemAmount(item: any): number {
+  if (item.quotation_sub_amount !== undefined && item.quotation_sub_amount !== null && Number(item.quotation_sub_amount) > 0) {
+    return Number(item.quotation_sub_amount);
+  }
+  const qty = Number(item.quotation_sub_quantity) || 0;
+  const rate = Number(item.quotation_sub_rate) || 0;
+  const size1 = Number(item.quotation_sub_size1) || 0;
+  const size2 = Number(item.quotation_sub_size2) || 0;
+  const unit = (getPrintSizeUnit(item) || "").toUpperCase().trim();
+  const isSingleUnit = unit === "METRES" || unit === "METERS" || unit === "MTR" || unit === "KG" || unit === "NOS";
+
+  const rawSum = item.quotation_sub_size_sum || item.products_size_sum || item.size_sum;
+  let sizeSum = 1;
+  if (isSingleUnit) {
+    sizeSum = 1;
+  } else if (rawSum !== undefined && rawSum !== null && !isNaN(Number(rawSum)) && Number(rawSum) > 0) {
+    sizeSum = Number(rawSum);
+  } else if (size1 > 0 && size2 > 0) {
+    sizeSum = size1 * size2;
+  }
+
+  return qty * sizeSum * rate;
+}
+
+function calculateTotalQuotationAmount(quoteData: any): number {
+  if (!quoteData) return 0;
+  const items = quoteData.quotationSub || [];
+  const calculatedSum = items.reduce((sum: number, item: any) => sum + getItemAmount(item), 0);
+  if (quoteData.quotationSubSum && Number(quoteData.quotationSubSum) > 0) {
+    return Number(quoteData.quotationSubSum);
+  }
+  return calculatedSum;
+}
+
 function escapePdfText(value: unknown) {
   return String(value ?? "")
     .replace(/\\/g, "\\\\")
@@ -226,9 +260,7 @@ function buildQuotationPdf(
     const size1 = Number(item.quotation_sub_size1) || 0;
     const size2 = Number(item.quotation_sub_size2) || 0;
     const rate = Number(item.quotation_sub_rate) || 0;
-    const amount =
-      Number(item.quotation_sub_amount) ||
-      (Number(item.quotation_sub_quantity) || 0) * rate;
+    const amount = getItemAmount(item);
     const thickness = item.quotation_sub_thickness
       ? `${item.quotation_sub_thickness}${item.quotation_sub_unit || ""}`
       : "";
@@ -342,7 +374,7 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
         buildQuotationPdf(
           quoteData.quotation,
           quoteData.quotationSub || [],
-          Number(quoteData.quotationSubSum) || 0,
+          calculateTotalQuotationAmount(quoteData),
         ),
       );
     }
@@ -355,7 +387,7 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
 
     try {
       const q = quoteData.quotation;
-      const message = `Quotation Details:\n\nClient: ${q.full_name || ""}\nQuotation No: ${q.quotation_no || ""}\nDate: ${formatQuotationDate(q.quotation_date)}\nTotal Amount: ₹${(Number(quoteData.quotationSubSum) || 0).toFixed(2)}\n\nThank you for choosing Deco Panel!`;
+      const message = `Quotation Details:\n\nClient: ${q.full_name || ""}\nQuotation No: ${q.quotation_no || ""}\nDate: ${formatQuotationDate(q.quotation_date)}\nTotal Amount: ₹${calculateTotalQuotationAmount(quoteData).toFixed(2)}\n\nThank you for choosing Deco Panel!`;
       const encodedMessage = encodeURIComponent(message);
 
       // Determine user agent for device specific link
@@ -420,7 +452,7 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
 
   const q = quoteData.quotation;
   const items = quoteData.quotationSub || [];
-  const totalAmount = Number(quoteData.quotationSubSum) || 0;
+  const totalAmount = calculateTotalQuotationAmount(quoteData);
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6 w-full max-w-5xl mx-auto pb-24 md:pb-6 animate-fade-in duration-300 print:p-0 print:m-0 print:w-full print:shadow-none print:border-none">
@@ -521,9 +553,7 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
                 <tbody>
                   {items.map((item, idx) => {
                     const rate = Number(item.quotation_sub_rate) || 0;
-                    const amount =
-                      Number(item.quotation_sub_amount) ||
-                      (Number(item.quotation_sub_quantity) || 0) * rate;
+                    const amount = getItemAmount(item);
                     const size1 = Number(item.quotation_sub_size1) || 0;
                     const size2 = Number(item.quotation_sub_size2) || 0;
                     const sizeUnit = item.quotation_sub_size_unit || "";
@@ -667,9 +697,7 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
                 const size1 = Number(item.quotation_sub_size1) || 0;
                 const size2 = Number(item.quotation_sub_size2) || 0;
                 const rate = Number(item.quotation_sub_rate) || 0;
-                const amount =
-                  Number(item.quotation_sub_amount) ||
-                  (Number(item.quotation_sub_quantity) || 0) * rate;
+                const amount = getItemAmount(item);
                 const thickness = item.quotation_sub_thickness
                   ? `${item.quotation_sub_thickness}${item.quotation_sub_unit || ""}`
                   : "";

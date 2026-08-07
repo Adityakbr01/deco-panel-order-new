@@ -48,6 +48,7 @@ export interface Product {
   products_size1: string;
   products_size2: string;
   products_size_unit: string;
+  products_size_sum?: string | number | null;
   products_rate: string | number;
   product_status: string;
   products_image: string | null;

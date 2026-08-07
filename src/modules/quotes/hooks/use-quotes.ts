@@ -41,6 +41,11 @@ export function useQuotationDetail(id: number | string | undefined) {
     queryKey: ["quotation-detail", id],
     queryFn: async () => {
       const response = await api.get<QuotationDetailResponse>(`/web-fetch-quotation-by-Id/${id}`);
+      console.group("📥 [Quotation GET Fetch Debug - Edit Page]");
+      console.log("Fetched Quote ID:", id);
+      console.log("Backend Returned Quotation:", response.data?.quotation);
+      console.log("Backend Returned QuotationSub Items:", response.data?.quotationSub);
+      console.groupEnd();
       return response.data;
     },
     enabled: !!id,
@@ -53,6 +58,11 @@ export function useQuotationViewDetail(id: number | string | undefined) {
     queryKey: ["quotation-view-detail", id],
     queryFn: async () => {
       const response = await api.get<QuotationDetailResponse>(`/web-fetch-quotation-view-by-Id/${id}`);
+      console.group("📥 [Quotation GET Fetch Debug - View Page]");
+      console.log("Fetched Quote ID:", id);
+      console.log("Backend Returned Quotation:", response.data?.quotation);
+      console.log("Backend Returned QuotationSub Items:", response.data?.quotationSub);
+      console.groupEnd();
       return response.data;
     },
     enabled: !!id,
@@ -97,11 +107,38 @@ export function useUpdateQuotationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, payload }: { id: number | string; payload: any }) => {
-      const response = await api.put<{ code: number; msg?: string }>(`/web-update-quotation/${id}`, payload);
+      console.group("[Quotation Update Debug]");
+      console.log("Updating Quotation ID:", id);
+      console.log("Payload sent to API:", JSON.stringify(payload, null, 2));
+      console.groupEnd();
+
+      let response;
+      try {
+        response = await api.post<{ code: number; msg?: string }>(`/web-update-quotation/${id}?_method=PUT`, payload);
+      } catch {
+        response = await api.put<{ code: number; msg?: string }>(`/web-update-quotation/${id}`, payload);
+      }
+
+      console.group("[Quotation Update API Response]");
+      console.log("Response:", response.data);
+      console.groupEnd();
+
+      if (typeof window !== "undefined") {
+        (window as any).__lastQuotationUpdateDebug = {
+          quoteId: id,
+          payload,
+          response: response.data,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
       return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["quotation-detail", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["quotation-detail", String(variables.id)] });
+      queryClient.invalidateQueries({ queryKey: ["quotation-detail", Number(variables.id)] });
+      queryClient.invalidateQueries({ queryKey: ["quotation-view-detail", String(variables.id)] });
+      queryClient.invalidateQueries({ queryKey: ["quotation-view-detail", Number(variables.id)] });
       queryClient.invalidateQueries({ queryKey: ["open-quotes-list"] });
       queryClient.invalidateQueries({ queryKey: ["processing-quotes-list"] });
       queryClient.invalidateQueries({ queryKey: ["completed-quotes-list"] });

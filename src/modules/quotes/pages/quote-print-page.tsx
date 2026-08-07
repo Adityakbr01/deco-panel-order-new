@@ -5,6 +5,40 @@ import { Button } from "@/components/ui/button";
 import { useQuotationViewDetail } from "../hooks/use-quotes";
 import { formatQuotationDate } from "../utils/date";
 
+function getItemAmount(item: any): number {
+  if (item.quotation_sub_amount !== undefined && item.quotation_sub_amount !== null && Number(item.quotation_sub_amount) > 0) {
+    return Number(item.quotation_sub_amount);
+  }
+  const qty = Number(item.quotation_sub_quantity) || 0;
+  const rate = Number(item.quotation_sub_rate) || 0;
+  const size1 = Number(item.quotation_sub_size1) || 0;
+  const size2 = Number(item.quotation_sub_size2) || 0;
+  const unit = (item.quotation_sub_size_unit || item.orders_sub_size_unit || item.products_size_unit || "").toUpperCase().trim();
+  const isSingleUnit = unit === "METRES" || unit === "METERS" || unit === "MTR" || unit === "KG" || unit === "NOS";
+
+  const rawSum = item.quotation_sub_size_sum || item.products_size_sum || item.size_sum;
+  let sizeSum = 1;
+  if (isSingleUnit) {
+    sizeSum = 1;
+  } else if (rawSum !== undefined && rawSum !== null && !isNaN(Number(rawSum)) && Number(rawSum) > 0) {
+    sizeSum = Number(rawSum);
+  } else if (size1 > 0 && size2 > 0) {
+    sizeSum = size1 * size2;
+  }
+
+  return qty * sizeSum * rate;
+}
+
+function calculateTotalQuotationAmount(quoteData: any): number {
+  if (!quoteData) return 0;
+  const items = quoteData.quotationSub || [];
+  const calculatedSum = items.reduce((sum: number, item: any) => sum + getItemAmount(item), 0);
+  if (quoteData.quotationSubSum && Number(quoteData.quotationSubSum) > 0) {
+    return Number(quoteData.quotationSubSum);
+  }
+  return calculatedSum;
+}
+
 export function QuotePrintPage({ quoteId }: { quoteId: string }) {
   const { data: quoteData, isLoading } = useQuotationViewDetail(quoteId);
 
@@ -40,7 +74,7 @@ export function QuotePrintPage({ quoteId }: { quoteId: string }) {
 
   const q = quoteData.quotation;
   const items = quoteData.quotationSub || [];
-  const totalAmount = Number(quoteData.quotationSubSum) || 0;
+  const totalAmount = calculateTotalQuotationAmount(quoteData);
 
   return (
     <div className="quote-print-page min-h-dvh w-full bg-white p-6 text-black font-sans print:min-h-0 print:p-0">
@@ -117,9 +151,7 @@ export function QuotePrintPage({ quoteId }: { quoteId: string }) {
             <tbody>
               {items.map((item: any, idx: number) => {
                 const rate = Number(item.quotation_sub_rate) || 0;
-                const amount =
-                  Number(item.quotation_sub_amount) ||
-                  (Number(item.quotation_sub_quantity) || 0) * rate;
+                const amount = getItemAmount(item);
                 const size1 = Number(item.quotation_sub_size1) || 0;
                 const size2 = Number(item.quotation_sub_size2) || 0;
 

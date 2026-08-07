@@ -26,6 +26,13 @@ interface EditQuotePageProps {
   quoteId: string;
 }
 
+function normalizeQuotationStatus(status: unknown): string {
+  if (!status) return "Quotation";
+  const str = String(status).trim();
+  if (str.toUpperCase().includes("CANCEL")) return "Cancel";
+  return "Quotation";
+}
+
 export function EditQuotePage({ quoteId }: EditQuotePageProps) {
   const navigate = useNavigate();
   const { trigger } = useWebHaptics();
@@ -42,7 +49,7 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
   const [quotation, setQuotation] = useState({
     order_user_id: "",
     quotation_date: "",
-    quotation_status: "",
+    quotation_status: "Quotation",
     quotation_count: 0,
     quotation_remarks: "",
     quotation_delivery: "",
@@ -68,31 +75,76 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
 
-  // Sync state when quoteData loads
+  // Sync state when quoteData loads (only once on initial load per quoteId)
+  const hasLoadedRef = React.useRef<string | null>(null);
+
   useEffect(() => {
-    if (quoteData) {
+    if (quoteData && hasLoadedRef.current !== quoteId) {
+      hasLoadedRef.current = quoteId;
+
+      const qObj = Array.isArray(quoteData?.quotation)
+        ? quoteData.quotation[0]
+        : quoteData?.quotation || (quoteData as any)?.data?.quotation || (Array.isArray(quoteData) ? quoteData[0] : quoteData);
+
+      const rawStatus =
+        qObj?.quotation_status ??
+        qObj?.status ??
+        qObj?.orders_status ??
+        (quoteData as any)?.quotation_status;
+
+      const statusVal = normalizeQuotationStatus(rawStatus);
+
       setQuotation({
-        order_user_id: String(quoteData.quotation?.order_user_id || ""),
-        quotation_date: quoteData.quotation?.quotation_date || "",
-        quotation_status: quoteData.quotation?.quotation_status || "",
-        quotation_count: quoteData.quotation?.quotation_count || 0,
-        quotation_remarks: quoteData.quotation?.quotation_remarks || "",
-        quotation_delivery: quoteData.quotation?.quotation_delivery || "",
-        quotation_shipping: quoteData.quotation?.quotation_shipping || "",
+        order_user_id: String(qObj?.order_user_id || qObj?.orders_user_id || ""),
+        quotation_date: qObj?.quotation_date || "",
+        quotation_status: statusVal,
+        quotation_count: qObj?.quotation_count || 0,
+        quotation_remarks: qObj?.quotation_remarks || "",
+        quotation_delivery: qObj?.quotation_delivery || "",
+        quotation_shipping: qObj?.quotation_shipping || "",
       });
 
-      if (quoteData.quotationSub && quoteData.quotationSub.length > 0) {
-        const formattedSub = quoteData.quotationSub.map((sub: any) => ({
-          quotation_sub_product_id: sub.quotation_sub_product_id || "",
-          quotation_sub_quantity: sub.quotation_sub_quantity || "",
-          quotation_sub_rate: sub.quotation_sub_rate || "",
-          quotation_sub_design_no: sub.quotation_sub_design_no || "",
-          id: sub.id,
-        }));
+      const subItems = quoteData.quotationSub || (quoteData as any)?.data?.quotationSub || [];
+      if (subItems && subItems.length > 0) {
+        const formattedSub = subItems.map((sub: any) => {
+          const prodCode = sub.quotation_sub_product_code;
+          const rawId = sub.quotation_sub_product_id || sub.orders_sub_product_id || sub.product_id || sub.products_id || "";
+
+          const matchingProd = products.find(
+            (p) => (prodCode && p.products_code === prodCode) || String(p.id) === String(rawId)
+          );
+
+          const realProdId = matchingProd ? String(matchingProd.id) : String(rawId);
+          const qty = String(sub.quotation_sub_quantity || sub.orders_sub_quantity || sub.quantity || "");
+          const rate = String(sub.quotation_sub_rate || sub.orders_sub_rate || sub.rate || "");
+          const design = String(sub.quotation_sub_design_no || sub.orders_sub_design_no || sub.design_no || "");
+
+          return {
+            id: sub.id ? String(sub.id) : undefined,
+            rawSub: sub,
+            selectedProduct: matchingProd,
+            quotation_sub_product_id: realProdId,
+            orders_sub_product_id: realProdId,
+            product_id: realProdId,
+            quotation_sub_quantity: qty,
+            orders_sub_quantity: qty,
+            quotation_sub_rate: rate,
+            orders_sub_rate: rate,
+            quotation_sub_design_no: design,
+            orders_sub_design_no: design,
+            quotation_sub_thickness: sub.quotation_sub_thickness || matchingProd?.products_thickness || "",
+            quotation_sub_size1: sub.quotation_sub_size1 || matchingProd?.products_size1 || "",
+            quotation_sub_size2: sub.quotation_sub_size2 || matchingProd?.products_size2 || "",
+            quotation_sub_size_unit: sub.quotation_sub_size_unit || matchingProd?.products_size_unit || "",
+            quotation_sub_brand: sub.quotation_sub_brand || matchingProd?.products_brand || "",
+            product_category: sub.product_category || matchingProd?.product_category || "",
+            product_sub_category: sub.product_sub_category || matchingProd?.product_sub_category || "",
+          };
+        });
         setItems(formattedSub);
       }
     }
-  }, [quoteData]);
+  }, [quoteData, quoteId, products]);
 
   const handleOpenProductDialog = (index: number) => {
     trigger("light");
@@ -103,10 +155,37 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
   const handleProductSelect = (product: OrderProduct) => {
     if (activeItemIndex === null) return;
     trigger("medium");
+    const newProdId = String(product.id);
+
     setItems((prev) =>
       prev.map((item, idx) =>
         idx === activeItemIndex
-          ? { ...item, quotation_sub_product_id: String(product.id) }
+          ? {
+              ...item,
+              selectedProduct: product,
+              quotation_sub_product_id: newProdId,
+              orders_sub_product_id: newProdId,
+              product_id: newProdId,
+              products_id: newProdId,
+              quotation_sub_catg_id: product.products_catg_id,
+              orders_sub_catg_id: product.products_catg_id,
+              quotation_sub_sub_catg_id: product.products_sub_catg_id,
+              orders_sub_sub_catg_id: product.products_sub_catg_id,
+              quotation_sub_brand: product.products_brand,
+              orders_sub_brand: product.products_brand,
+              quotation_sub_thickness: product.products_thickness,
+              orders_sub_thickness: product.products_thickness,
+              quotation_sub_unit: product.products_unit,
+              orders_sub_unit: product.products_unit,
+              quotation_sub_size1: product.products_size1,
+              orders_sub_size1: product.products_size1,
+              quotation_sub_size2: product.products_size2,
+              orders_sub_size2: product.products_size2,
+              quotation_sub_size_unit: product.products_size_unit,
+              orders_sub_size_unit: product.products_size_unit,
+              quotation_sub_size_sum: product.products_size_sum,
+              orders_sub_size_sum: product.products_size_sum,
+            }
           : item
       )
     );
@@ -115,9 +194,14 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
 
   const handleItemChange = (index: number, field: string, value: string) => {
     setItems((prev) =>
-      prev.map((item, idx) =>
-        idx === index ? { ...item, [field]: value } : item
-      )
+      prev.map((item, idx) => {
+        if (idx !== index) return item;
+        const updated: any = { ...item, [field]: value };
+        if (field === "quotation_sub_quantity") updated.orders_sub_quantity = value;
+        if (field === "quotation_sub_rate") updated.orders_sub_rate = value;
+        if (field === "quotation_sub_design_no") updated.orders_sub_design_no = value;
+        return updated;
+      })
     );
   };
 
@@ -127,9 +211,14 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
       ...prev,
       {
         quotation_sub_product_id: "",
+        orders_sub_product_id: "",
+        product_id: "",
         quotation_sub_quantity: "",
+        orders_sub_quantity: "",
         quotation_sub_rate: "",
+        orders_sub_rate: "",
         quotation_sub_design_no: "",
+        orders_sub_design_no: "",
       },
     ]);
   };
@@ -139,10 +228,38 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
     setItems((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const getProductLabel = (productId: string | number) => {
-    const prod = products.find((p) => String(p.id) === String(productId));
-    if (!prod) return "Click to Select Product...";
-    return `${prod.product_sub_category} (Category: ${prod.product_category}) - Brand: ${prod.products_brand} (${prod.products_thickness}MM, ${prod.products_size1}x${prod.products_size2})`;
+  const getProductLabel = (item: any) => {
+    if (!item) return "Click to Select Product...";
+    if (item.selectedProduct) {
+      const p = item.selectedProduct;
+      return `${p.product_sub_category || ""} (Category: ${p.product_category || ""}) - Brand: ${p.products_brand || "N/A"} (${p.products_thickness || ""}MM, ${p.products_size1 || ""}x${p.products_size2 || ""})`;
+    }
+
+    const prodId = item.quotation_sub_product_id || item.orders_sub_product_id || item.product_id;
+    const prodCode = item.rawSub?.quotation_sub_product_code || item.quotation_sub_product_code;
+
+    const prodByCode = products.find((p) => prodCode && p.products_code === prodCode);
+    if (prodByCode) {
+      return `${prodByCode.product_sub_category || ""} (Category: ${prodByCode.product_category || ""}) - Brand: ${prodByCode.products_brand || "N/A"} (${prodByCode.products_thickness || ""}MM, ${prodByCode.products_size1 || ""}x${prodByCode.products_size2 || ""})`;
+    }
+
+    const prodById = products.find((p) => String(p.id) === String(prodId));
+    if (prodById) {
+      return `${prodById.product_sub_category || ""} (Category: ${prodById.product_category || ""}) - Brand: ${prodById.products_brand || "N/A"} (${prodById.products_thickness || ""}MM, ${prodById.products_size1 || ""}x${prodById.products_size2 || ""})`;
+    }
+
+    const catg = item.product_category || item.rawSub?.product_category || "";
+    const subCatg = item.product_sub_category || item.rawSub?.product_sub_category || "";
+    const brand = item.quotation_sub_brand || item.rawSub?.quotation_sub_brand || "N/A";
+    const thick = item.quotation_sub_thickness || item.rawSub?.quotation_sub_thickness || "";
+    const s1 = item.quotation_sub_size1 || item.rawSub?.quotation_sub_size1 || "";
+    const s2 = item.quotation_sub_size2 || item.rawSub?.quotation_sub_size2 || "";
+
+    if (subCatg || thick) {
+      return `${subCatg} (Category: ${catg}) - Brand: ${brand} (${thick}MM, ${s1}x${s2})`;
+    }
+
+    return prodId ? `Product #${prodId} (Click to change)` : "Click to Select Product...";
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -159,18 +276,72 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
       return;
     }
 
-    if (!quotation.quotation_status) {
-      toast.error("Please select a status for the quotation.");
-      return;
-    }
+    const quotationSubData = items.map((item: any) => {
+      const rawId = item.id ? Number(item.id) : null;
+      const numProdId = Number(item.quotation_sub_product_id || item.orders_sub_product_id || item.product_id || 0);
+      const numQty = Number(item.quotation_sub_quantity || item.orders_sub_quantity || 0);
+      const numRate = Number(item.quotation_sub_rate || item.orders_sub_rate || 0);
+      const strDesign = String(item.quotation_sub_design_no || item.orders_sub_design_no || "");
+
+      const prod = item.selectedProduct || products.find((p) => Number(p.id) === numProdId);
+
+      return {
+        id: rawId,
+        quotation_sub_product_id: numProdId,
+        orders_sub_product_id: numProdId,
+        product_id: numProdId,
+        products_id: numProdId,
+        quotation_sub_quantity: numQty,
+        orders_sub_quantity: numQty,
+        quantity: numQty,
+        quotation_sub_rate: numRate,
+        orders_sub_rate: numRate,
+        rate: numRate,
+        quotation_sub_design_no: strDesign,
+        orders_sub_design_no: strDesign,
+        design_no: strDesign,
+
+        // Snapshot fields
+        quotation_sub_catg_id: prod?.products_catg_id ? Number(prod.products_catg_id) : (item.quotation_sub_catg_id ? Number(item.quotation_sub_catg_id) : null),
+        orders_sub_catg_id: prod?.products_catg_id ? Number(prod.products_catg_id) : (item.orders_sub_catg_id ? Number(item.orders_sub_catg_id) : null),
+
+        quotation_sub_sub_catg_id: prod?.products_sub_catg_id ? Number(prod.products_sub_catg_id) : (item.quotation_sub_sub_catg_id ? Number(item.quotation_sub_sub_catg_id) : null),
+        orders_sub_sub_catg_id: prod?.products_sub_catg_id ? Number(prod.products_sub_catg_id) : (item.orders_sub_sub_catg_id ? Number(item.orders_sub_sub_catg_id) : null),
+
+        quotation_sub_brand: prod?.products_brand || item.quotation_sub_brand || "",
+        orders_sub_brand: prod?.products_brand || item.orders_sub_brand || "",
+
+        quotation_sub_thickness: prod?.products_thickness || item.quotation_sub_thickness || "",
+        orders_sub_thickness: prod?.products_thickness || item.orders_sub_thickness || "",
+
+        quotation_sub_unit: prod?.products_unit || item.quotation_sub_unit || "",
+        orders_sub_unit: prod?.products_unit || item.orders_sub_unit || "",
+
+        quotation_sub_size1: prod?.products_size1 ? Number(prod.products_size1) : (item.quotation_sub_size1 ? Number(item.quotation_sub_size1) : null),
+        orders_sub_size1: prod?.products_size1 ? Number(prod.products_size1) : (item.orders_sub_size1 ? Number(item.orders_sub_size1) : null),
+
+        quotation_sub_size2: prod?.products_size2 ? Number(prod.products_size2) : (item.quotation_sub_size2 ? Number(item.quotation_sub_size2) : null),
+        orders_sub_size2: prod?.products_size2 ? Number(prod.products_size2) : (item.orders_sub_size2 ? Number(item.orders_sub_size2) : null),
+
+        quotation_sub_size_unit: prod?.products_size_unit || item.quotation_sub_size_unit || "",
+        orders_sub_size_unit: prod?.products_size_unit || item.orders_sub_size_unit || "",
+
+        quotation_sub_size_sum: prod?.products_size_sum ? String(prod.products_size_sum) : (item.quotation_sub_size_sum ? String(item.quotation_sub_size_sum) : "1"),
+        orders_sub_size_sum: prod?.products_size_sum ? String(prod.products_size_sum) : (item.orders_sub_size_sum ? String(item.orders_sub_size_sum) : "1"),
+      };
+    });
+
+    const finalStatus = normalizeQuotationStatus(quotation.quotation_status);
 
     updateMutation.mutate(
       {
         id: quoteId,
         payload: {
-          quotation_status: quotation.quotation_status,
-          quotation_sub_data: items,
-          quotation_count: quotation.quotation_count,
+          quotation_status: finalStatus,
+          quotation_sub_data: quotationSubData,
+          order_sub_data: quotationSubData,
+          quotation_count: quotationSubData.length,
+          orders_count: quotationSubData.length,
           quotation_remarks: quotation.quotation_remarks,
           quotation_delivery: quotation.quotation_delivery,
           quotation_shipping: quotation.quotation_shipping,
@@ -251,7 +422,7 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
                 Status *
               </label>
               <Select
-                value={quotation.quotation_status}
+                value={quotation.quotation_status || "Quotation"}
                 onValueChange={(val) => handleInputChange("quotation_status", val)}
               >
                 <SelectTrigger className="w-full bg-background border border-border hover:border-border-hover focus:border-primary/80 rounded-xl px-3 py-2 text-sm font-semibold outline-none text-text">
@@ -315,7 +486,15 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
           <h3 className="text-base font-extrabold text-text flex items-center gap-2">
             📋 Quotation Items ({items.length})
           </h3>
-
+          <Button
+            type="button"
+            onClick={handleAddItem}
+            className="cursor-pointer text-xs font-bold gap-1 rounded-xl"
+            variant="outline"
+            size="sm"
+          >
+            <Plus className="size-3.5" /> Add Row
+          </Button>
         </div>
 
         {/* Dynamic sub items editing */}
@@ -338,12 +517,12 @@ export function EditQuotePage({ quoteId }: EditQuotePageProps) {
                     >
                       <span
                         className={`leading-5 overflow-hidden break-words [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] ${
-                          item.quotation_sub_product_id
+                          item.quotation_sub_product_id || item.selectedProduct || item.rawSub
                             ? "text-text"
                             : "text-text-muted font-normal"
                         }`}
                       >
-                        {getProductLabel(item.quotation_sub_product_id)}
+                        {getProductLabel(item)}
                       </span>
                     </button>
                   </div>

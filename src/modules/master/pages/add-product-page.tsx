@@ -25,6 +25,12 @@ const unitOptions = [
 ];
 
 const sizeUnitOptions = [
+  { value: "PCS", label: "PCS" },
+  { value: "Metres", label: "Metres" },
+  { value: "ML", label: "ML" },
+  { value: "KG", label: "KG" },
+  { value: "LT", label: "LT" },
+  { value: "Nos", label: "Nos" },
   { value: "Inch", label: "Inch" },
   { value: "Feet", label: "Feet" },
 ];
@@ -48,6 +54,7 @@ export function AddProductPage() {
   const [length, setLength] = useState("");
   const [breadth, setBreadth] = useState("");
   const [sizeUnit, setSizeUnit] = useState("");
+  const [sizeSum, setSizeSum] = useState("");
   const [rate, setRate] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -61,6 +68,22 @@ export function AddProductPage() {
       refetchSubCategories();
     }
   }, [categoryId, refetchSubCategories]);
+
+  // Auto-calculate Products Size Sum: 1 if Metres/KG/Nos, else length * breadth
+  useEffect(() => {
+    const u = (sizeUnit || "").toUpperCase().trim();
+    if (u === "METRES" || u === "METERS" || u === "MTR" || u === "KG" || u === "NOS") {
+      setSizeSum("1");
+    } else {
+      const l = parseFloat(length);
+      const b = parseFloat(breadth);
+      if (!isNaN(l) && !isNaN(b)) {
+        setSizeSum(String(l * b));
+      } else {
+        setSizeSum("");
+      }
+    }
+  }, [sizeUnit, length, breadth]);
 
   // Validations
   const validateOnlyDigits = (val: string) => /^\d*$/.test(val);
@@ -109,6 +132,7 @@ export function AddProductPage() {
     formData.append("products_size1", length);
     formData.append("products_size2", breadth);
     formData.append("products_size_unit", sizeUnit);
+    formData.append("products_size_sum", sizeSum);
     formData.append("products_rate", rate);
     if (selectedFile) {
       formData.append("products_image", selectedFile);
@@ -232,7 +256,7 @@ export function AddProductPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               {/* Thickness */}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="thickness" className="text-xs font-bold text-text-muted uppercase tracking-wider">Thickness</Label>
@@ -242,7 +266,7 @@ export function AddProductPage() {
                   maxLength={6}
                   value={thickness}
                   onChange={(e) => {
-                    if (validateOnlyDigits(e.target.value)) setThickness(e.target.value);
+                    if (validateDecimal(e.target.value)) setThickness(e.target.value);
                   }}
                   placeholder="e.g. 18"
                   className="bg-background border-border rounded-xl"
@@ -275,15 +299,13 @@ export function AddProductPage() {
                   maxLength={6}
                   value={length}
                   onChange={(e) => {
-                    if (validateOnlyDigits(e.target.value)) setLength(e.target.value);
+                    if (validateDecimal(e.target.value)) setLength(e.target.value);
                   }}
                   placeholder="e.g. 8"
                   className="bg-background border-border rounded-xl"
                 />
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               {/* Breadth */}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="breadth" className="text-xs font-bold text-text-muted uppercase tracking-wider">Breadth (Size 2)</Label>
@@ -293,13 +315,15 @@ export function AddProductPage() {
                   maxLength={6}
                   value={breadth}
                   onChange={(e) => {
-                    if (validateOnlyDigits(e.target.value)) setBreadth(e.target.value);
+                    if (validateDecimal(e.target.value)) setBreadth(e.target.value);
                   }}
                   placeholder="e.g. 4"
                   className="bg-background border-border rounded-xl"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
               {/* Size Unit */}
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs font-bold text-text-muted uppercase tracking-wider">Size Unit</Label>
@@ -315,6 +339,22 @@ export function AddProductPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Products Size Sum */}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="products-size-sum" className="text-xs font-bold text-text-muted uppercase tracking-wider">Products Size Sum</Label>
+                <Input
+                  id="products-size-sum"
+                  type="text"
+                  maxLength={10}
+                  value={sizeSum}
+                  onChange={(e) => {
+                    if (validateDecimal(e.target.value)) setSizeSum(e.target.value);
+                  }}
+                  placeholder="e.g. 32"
+                  className="bg-background border-border rounded-xl"
+                />
               </div>
 
               {/* Rate */}
