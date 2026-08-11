@@ -41,6 +41,9 @@ export interface OrderProduct {
   products_size1: string;
   products_size2: string;
   products_size_unit: string;
+  products_code?: string | number | null;
+  product_code?: string | number | null;
+  productCode?: string | number | null;
 }
 
 export interface UserProfile {

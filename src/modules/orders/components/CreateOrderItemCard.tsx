@@ -31,7 +31,11 @@ function getProductSpecs(item: CreateOrderItemInput) {
     { label: "Unit", val: item.orders_sub_unit },
     {
       label: "Size",
-      val: `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit}`,
+      val: item.orders_sub_size1
+        ? item.orders_sub_size2 && Number(item.orders_sub_size2) > 0
+          ? `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit || ""}`
+          : `${item.orders_sub_size1} ${item.orders_sub_size_unit || ""}`
+        : "",
     },
   ];
 }

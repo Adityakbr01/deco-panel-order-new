@@ -266,8 +266,10 @@ function buildQuotationPdf(
       : "";
     const sizeUnit = getPrintSizeUnit(item);
     const sizeLabel =
-      size1 > 1 && size2 > 1
+      size1 > 0 && size2 > 0
         ? `${size1}x${size2}${sizeUnit ? ` ${sizeUnit}` : ""}`
+        : size1 > 0
+        ? `${size1}${sizeUnit ? ` ${sizeUnit}` : ""}`
         : sizeUnit;
     const itemLines = [
       ...wrapPdfText(
@@ -558,8 +560,10 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
                     const size2 = Number(item.quotation_sub_size2) || 0;
                     const sizeUnit = item.quotation_sub_size_unit || "";
                     const sizeLabel =
-                      size1 > 1 && size2 > 1
+                      size1 > 0 && size2 > 0
                         ? `${size1} x ${size2}${sizeUnit ? ` ${sizeUnit}` : ""}`
+                        : size1 > 0
+                        ? `${size1}${sizeUnit ? ` ${sizeUnit}` : ""}`
                         : sizeUnit || "-";
 
                     return (
@@ -703,8 +707,10 @@ export function ViewQuotePage({ quoteId }: ViewQuotePageProps) {
                   : "";
                 const sizeUnit = item.quotation_sub_size_unit || "";
                 const sizeLabel =
-                  size1 > 1 && size2 > 1
+                  size1 > 0 && size2 > 0
                     ? `${size1}x${size2}${sizeUnit ? ` ${sizeUnit}` : ""}`
+                    : size1 > 0
+                    ? `${size1}${sizeUnit ? ` ${sizeUnit}` : ""}`
                     : sizeUnit;
 
                 return (

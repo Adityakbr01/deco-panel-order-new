@@ -174,7 +174,11 @@ export function QuotePrintPage({ quoteId }: { quoteId: string }) {
                       </div>
                     </td>
                     <td className="px-2 py-2.5 text-center">
-                      {size1 > 1 && size2 > 1 ? `${size1} x ${size2}` : "-"}
+                      {size1 > 0 && size2 > 0
+                        ? `${size1} x ${size2}`
+                        : size1 > 0
+                        ? `${size1} ${item.quotation_sub_size_unit || ""}`
+                        : "-"}
                     </td>
                     <td className="px-2 py-2.5 text-right font-medium">
                       {item.quotation_sub_quantity} {item.quotation_sub_unit || "PCS"}

@@ -291,8 +291,10 @@ export default function ViewOrderDetails({ orderId }: ViewOrderDetailsProps) {
                           </span>
                           <span className="text-xs font-extrabold text-text">
                             {item.orders_sub_size1 && item.orders_sub_size2
-                              ? `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit || ""}`
-                              : "—"}
+                               ? `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit || ""}`
+                               : item.orders_sub_size1
+                               ? `${item.orders_sub_size1} ${item.orders_sub_size_unit || ""}`
+                               : "—"}
                           </span>
                         </div>
 

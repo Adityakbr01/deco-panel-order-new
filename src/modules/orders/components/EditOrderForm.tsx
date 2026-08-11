@@ -601,7 +601,7 @@ export default function EditOrderForm({ orderId }: EditOrderFormProps) {
                             { label: "Brand", val: item.orders_sub_brand },
                             { label: "Thickness", val: item.orders_sub_thickness ? `${item.orders_sub_thickness} MM` : "" },
                             { label: "Unit", val: item.orders_sub_unit },
-                            { label: "Size", val: item.orders_sub_size1 ? `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit}` : "" },
+                            { label: "Size", val: item.orders_sub_size1 ? (item.orders_sub_size2 && Number(item.orders_sub_size2) > 0 ? `${item.orders_sub_size1}x${item.orders_sub_size2} ${item.orders_sub_size_unit || ""}` : `${item.orders_sub_size1} ${item.orders_sub_size_unit || ""}`) : "" },
                           ].map((spec, sIdx) => (
                             <div key={sIdx} className="flex flex-col gap-0.5">
                               <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">

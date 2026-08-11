@@ -31,7 +31,8 @@ export default function SelectProductDialog({
   const [search, setSearch] = useState("");
 
   const filteredProducts = products.filter((product) => {
-    const searchString = `${product.product_category} ${product.product_sub_category} ${product.products_brand} ${product.products_thickness} ${product.products_size1} ${product.products_size2}`.toLowerCase();
+    const code = product.products_code ?? product.product_code ?? product.productCode ?? "";
+    const searchString = `${code} ${product.product_category} ${product.product_sub_category} ${product.products_brand} ${product.products_thickness} ${product.products_size1} ${product.products_size2}`.toLowerCase();
     return searchString.includes(search.toLowerCase());
   });
 
@@ -53,7 +54,7 @@ export default function SelectProductDialog({
           <Search className="absolute left-7 top-1/2 -translate-y-1/2 size-4 text-text-muted" />
           <input
             type="text"
-            placeholder="Search by Category, Brand, Size, Thickness..."
+            placeholder="Search by Code, Category, Brand, Size, Thickness..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-background border border-border focus:border-primary/80 focus:ring-1 focus:ring-primary/45 rounded-xl pl-10 pr-10 py-2.5 text-sm font-medium outline-none transition-all placeholder:text-text-muted"
@@ -98,9 +99,16 @@ export default function SelectProductDialog({
                       </span>
                     </div>
 
-                    <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-text-muted">
-                      ID: {product.id}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(product.products_code || product.product_code || product.productCode) && (
+                        <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/15">
+                          Code: {product.products_code ?? product.product_code ?? product.productCode}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-text-muted">
+                        ID: {product.id}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 items-center mt-1">
@@ -111,7 +119,11 @@ export default function SelectProductDialog({
                       {product.products_thickness} MM
                     </span>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/10">
-                      {product.products_size1}x{product.products_size2} {product.products_size_unit}
+                      {product.products_size1 && product.products_size2 && Number(product.products_size2) > 0
+                        ? `${product.products_size1}x${product.products_size2} ${product.products_size_unit || ""}`
+                        : product.products_size1
+                        ? `${product.products_size1} ${product.products_size_unit || ""}`
+                        : product.products_size_unit}
                     </span>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 ml-auto">
                       Unit: {product.products_unit}
