@@ -56,7 +56,7 @@ export interface UserProfile {
 
 export interface CreateUserInput {
   name: string;
-  email: string;
+  email?: string;
   mobile: string;
   address?: string;
   state?: string;

@@ -85,7 +85,7 @@ export function CreateCustomerDialog({
             usersResult.data?.find(
               (user) =>
                 user.mobile === newUserForm.mobile ||
-                user.email === newUserForm.email ||
+                (Boolean(newUserForm.email) && user.email === newUserForm.email) ||
                 user.full_name?.toLowerCase() ===
                   newUserForm.name.toLowerCase(),
             );
@@ -162,10 +162,9 @@ export function CreateCustomerDialog({
 
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-xs font-bold text-text-muted uppercase tracking-wider">
-                Email *
+                Email
               </label>
               <Input
-                required
                 type="email"
                 value={newUserForm.email}
                 onChange={(event) =>

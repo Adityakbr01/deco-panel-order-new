@@ -206,7 +206,7 @@ export function useProductsList() {
           const fallbackResponse = await api.get<{ products: any[] }>("/web-fetch-product-list");
           fallbackProductsById = new Map(
             extractList(fallbackResponse.data, ["products", "productList", "productsList"])
-              .map((product) => [String(getProductId(product) || ""), product])
+              .map((product) => [String(getProductId(product) || ""), product] as [string, any])
               .filter(([productId]) => productId),
           );
         } catch (error) {
@@ -283,7 +283,7 @@ export function useCreateUserMutation() {
     mutationFn: async (data: CreateUserInput) => {
       const formData = new FormData();
       formData.append("name", data.name);
-      formData.append("email", data.email);
+      formData.append("email", data.email || "");
       formData.append("mobile", data.mobile);
       if (data.address) formData.append("address", data.address);
       if (data.state) formData.append("state", data.state);
