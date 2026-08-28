@@ -261,8 +261,8 @@ export function QuotePrintPage({ quoteId }: { quoteId: string }) {
           }
 
           @page {
-            size: A5 landscape;
-            margin: 10mm;
+            size: auto;
+            margin: 8mm;
           }
         }
       `}</style>
